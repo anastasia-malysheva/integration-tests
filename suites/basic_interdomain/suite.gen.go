@@ -33,10 +33,21 @@ func (s *Suite) SetupSuite() {
 func (s *Suite) TestNsm_consul() {
 	r := s.Runner("../deployments-k8s/examples/nsm_consul")
 	s.T().Cleanup(func() {
-		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete deployment static-server` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -k nse-auto-scale` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 delete -f client/client.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -f networkservice.yaml` + "\n" + `consul-k8s uninstall --kubeconfig=$KUBECONFIG2 -auto-approve=true -wipe-data=true`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete deployment static-server`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete -k nse-auto-scale`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG1 delete -f client/client.yaml`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete -f networkservice.yaml`)
+		r.Run(`consul-k8s uninstall --kubeconfig=$KUBECONFIG2 -auto-approve=true -wipe-data=true`)
 	})
 	r.Run(`brew tap hashicorp/tap` + "\n" + `brew install hashicorp/tap/consul-k8s`)
 	r.Run(`consul-k8s install -config-file=helm-consul-values.yaml -set global.image=hashicorp/consul:1.12.0 --kubeconfig=$KUBECONFIG2`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f networkservice.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f client/client.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f service.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -k nse-auto-scale`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f server/static-server.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec -it alpine-nsc -- apk add curl`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec -it alpine-nsc -- curl 172.16.1.2:8080 | grep -o "hello world"`)
 }
 func (s *Suite) TestNsm_istio() {
 	r := s.Runner("../deployments-k8s/examples/nsm_istio")
