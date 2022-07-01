@@ -52,12 +52,12 @@ func (s *Suite) TearDownSuite() {
 }
 
 const (
-	sha = "272e39d80e1e475139db3011a885be6ca5fc6507"
+	sha = "bc2ba4eb1b80f01163aabe204580ee59c16c7f49"
 )
 
 // SetupSuite runs all extensions
 func (s *Suite) SetupSuite() {
-	repo := "networkservicemesh/deployments-k8s"
+	repo := "anastasia-malysheva/deployments-k8s"
 	version := sha[:8]
 
 	s.checkout.Version = version

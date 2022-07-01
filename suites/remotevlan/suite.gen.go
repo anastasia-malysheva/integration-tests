@@ -42,11 +42,40 @@ func (s *Suite) SetupSuite() {
 	s.RunIncludedSuites()
 }
 func (s *Suite) RunIncludedSuites() {
+	runTest := func(subSuite suite.TestingSuite, suiteName, testName string, subtest func()) {
+		type runner interface {
+			Run(name string, f func()) bool
+		}
+		defer func() {
+			if afterTestSuite, ok := subSuite.(suite.AfterTest); ok {
+				afterTestSuite.AfterTest(suiteName, testName)
+			}
+			if tearDownTestSuite, ok := subSuite.(suite.TearDownTestSuite); ok {
+				tearDownTestSuite.TearDownTest()
+			}
+		}()
+		if setupTestSuite, ok := subSuite.(suite.SetupTestSuite); ok {
+			setupTestSuite.SetupTest()
+		}
+		if beforeTestSuite, ok := subSuite.(suite.BeforeTest); ok {
+			beforeTestSuite.BeforeTest(suiteName, testName)
+		}
+		// Run test
+		subSuite.(runner).Run(testName, subtest)
+	}
 	s.Run("Rvlanovs", func() {
-		suite.Run(s.T(), &s.rvlanovsSuite)
+		s.rvlanovsSuite.SetT(s.T())
+		s.rvlanovsSuite.SetupSuite()
+		runTest(&s.rvlanovsSuite, "Rvlanovs", "TestKernel2RVlanBreakout", s.rvlanovsSuite.TestKernel2RVlanBreakout)
+		runTest(&s.rvlanovsSuite, "Rvlanovs", "TestKernel2RVlanInternal", s.rvlanovsSuite.TestKernel2RVlanInternal)
+		runTest(&s.rvlanovsSuite, "Rvlanovs", "TestKernel2RVlanMultiNS", s.rvlanovsSuite.TestKernel2RVlanMultiNS)
 	})
 	s.Run("Rvlanvpp", func() {
-		suite.Run(s.T(), &s.rvlanvppSuite)
+		s.rvlanvppSuite.SetT(s.T())
+		s.rvlanvppSuite.SetupSuite()
+		runTest(&s.rvlanvppSuite, "Rvlanvpp", "TestKernel2RVlanBreakout", s.rvlanvppSuite.TestKernel2RVlanBreakout)
+		runTest(&s.rvlanvppSuite, "Rvlanvpp", "TestKernel2RVlanInternal", s.rvlanvppSuite.TestKernel2RVlanInternal)
+		runTest(&s.rvlanvppSuite, "Rvlanvpp", "TestKernel2RVlanMultiNS", s.rvlanvppSuite.TestKernel2RVlanMultiNS)
 	})
 }
 func (s *Suite) Test() {}

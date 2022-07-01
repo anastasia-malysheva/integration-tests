@@ -5,10 +5,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/networkservicemesh/integration-tests/extensions/base"
-	"github.com/networkservicemesh/integration-tests/suites/nsm_istio/dns"
-	"github.com/networkservicemesh/integration-tests/suites/nsm_istio/loadbalancer"
-	"github.com/networkservicemesh/integration-tests/suites/nsm_istio/nsm"
-	"github.com/networkservicemesh/integration-tests/suites/nsm_istio/spire"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/dns"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/loadbalancer"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/nsm"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/spire"
 )
 
 type Suite struct {
