@@ -5,12 +5,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/networkservicemesh/integration-tests/extensions/base"
-	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/examples/basic_interdomain/dns"
-	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/examples/basic_interdomain/loadbalancer"
-	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/examples/basic_interdomain/nsm"
-	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/examples/basic_interdomain/spire"
-	"github.com/networkservicemesh/integration-tests/suites/nsm_consul"
-	"github.com/networkservicemesh/integration-tests/suites/nsm_istio"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/dns"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/loadbalancer"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/nsm"
+	"github.com/networkservicemesh/integration-tests/suites/basic_interdomain/spire"
 )
 
 type Suite struct {
@@ -19,8 +17,6 @@ type Suite struct {
 	dnsSuite          dns.Suite
 	spireSuite        spire.Suite
 	nsmSuite          nsm.Suite
-	nsm_istioSuite    nsm_istio.Suite
-	nsm_consulSuite   nsm_consul.Suite
 }
 
 func (s *Suite) SetupSuite() {
@@ -33,37 +29,25 @@ func (s *Suite) SetupSuite() {
 			v.SetupSuite()
 		}
 	}
-	s.RunIncludedSuites()
 }
-func (s *Suite) RunIncludedSuites() {
-	runTest := func(subSuite suite.TestingSuite, suiteName, testName string, subtest func()) {
-		type runner interface {
-			Run(name string, f func()) bool
-		}
-		defer func() {
-			if afterTestSuite, ok := subSuite.(suite.AfterTest); ok {
-				afterTestSuite.AfterTest(suiteName, testName)
-			}
-			if tearDownTestSuite, ok := subSuite.(suite.TearDownTestSuite); ok {
-				tearDownTestSuite.TearDownTest()
-			}
-		}()
-		if setupTestSuite, ok := subSuite.(suite.SetupTestSuite); ok {
-			setupTestSuite.SetupTest()
-		}
-		if beforeTestSuite, ok := subSuite.(suite.BeforeTest); ok {
-			beforeTestSuite.BeforeTest(suiteName, testName)
-		}
-		// Run test
-		subSuite.(runner).Run(testName, subtest)
-	}
-	s.Run("Nsm_consul", func() {
-		s.nsm_consulSuite.SetT(s.T())
-		s.nsm_consulSuite.SetupSuite()
+func (s *Suite) TestNsm_consul() {
+	r := s.Runner("../deployments-k8s/examples/nsm_consul")
+	s.T().Cleanup(func() {
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete deployment static-server` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -k https://github.com/networkservicemesh/deployments-k8s/examples/nsm_consul/nse-auto-scale?ref=9b2e8e76fbc7505da8e87ea24bf90ac39f4b6c1a ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 delete -f https://github.com/networkservicemesh/deployments-k8s/examples/nsm_consul/client/client.yaml?ref=9b2e8e76fbc7505da8e87ea24bf90ac39f4b6c1a` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -f https://github.com/networkservicemesh/deployments-k8s/examples/nsm_consul/networkservice.yaml?ref=9b2e8e76fbc7505da8e87ea24bf90ac39f4b6c1a` + "\n" + `consul-k8s uninstall --kubeconfig=$KUBECONFIG2 -auto-approve=true -wipe-data=true`)
 	})
-	s.Run("Nsm_istio", func() {
-		s.nsm_istioSuite.SetT(s.T())
-		s.nsm_istioSuite.SetupSuite()
-	})
+	r.Run(`brew tap hashicorp/tap` + "\n" + `brew install hashicorp/tap/consul-k8s`)
+	r.Run(`consul-k8s install -config-file=https://github.com/networkservicemesh/deployments-k8s/examples/nsm_consul/helm-consul-values.yaml?ref=9b2e8e76fbc7505da8e87ea24bf90ac39f4b6c1a -set global.image=hashicorp/consul:1.12.0 --kubeconfig=$KUBECONFIG2`)
 }
-func (s *Suite) Test() {}
+func (s *Suite) TestNsm_istio() {
+	r := s.Runner("../deployments-k8s/examples/nsm_istio")
+	s.T().Cleanup(func() {
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete -f https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -k nse-auto-scale ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 delete -f productpage/productpage.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -f networkservice.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete ns istio-system` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 label namespace default istio-injection-` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete pods --all`)
+	})
+	r.Run(`curl -sL https://istio.io/downloadIstioctl | sh -` + "\n" + `export PATH=$PATH:$HOME/.istioctl/bin` + "\n" + `istioctl  install --set profile=minimal -y --kubeconfig=$KUBECONFIG2` + "\n" + `istioctl --kubeconfig=$KUBECONFIG2 proxy-status`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f networkservice.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f productpage/productpage.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -k nse-auto-scale`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 label namespace default istio-injection=enabled` + "\n" + `` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec deploy/productpage-v1 -c cmd-nsc -- apk add curl`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec deploy/productpage-v1 -c cmd-nsc -- curl -s productpage.default:9080/productpage | grep -o "<title>Simple Bookstore App</title>"`)
+}
