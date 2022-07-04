@@ -46,6 +46,10 @@ func (s *Suite) TestNsm_consul() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f service.yaml`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -k nse-auto-scale`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f server/static-server.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 wait --for=condition=ready --timeout=3m pod proxy-alpine-nsc` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 describe pods proxy-alpine-nsc` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 exec -it proxy-alpine-nsc -- bash -c ls`)
+	r.Run(`stsrv=$(kubectl get pods -l app=static-server --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 wait --for=condition=ready --timeout=3m pod $stsrv` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 describe pods $stsrv`)
+	r.Run(`supplier=$(kubectl get pods -l app=nse-supplier-k8s --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 wait --for=condition=ready --timeout=3m pod $supplier` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 describe pods $supplier`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 describe pods alpine-nsc` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 wait --for=condition=ready --timeout=10m pod alpine-nsc`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec -it alpine-nsc -- apk add curl`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec -it alpine-nsc -- curl 172.16.1.2:8080 | grep -o "hello world"`)
 }
