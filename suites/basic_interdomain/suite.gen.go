@@ -40,7 +40,7 @@ func (s *Suite) TestNsm_consul() {
 		r.Run(`consul-k8s uninstall --kubeconfig=$KUBECONFIG2 -auto-approve=true -wipe-data=true`)
 	})
 	r.Run(`brew tap hashicorp/tap` + "\n" + `brew install hashicorp/tap/consul-k8s`)
-	r.Run(`consul-k8s install -config-file=helm-consul-values.yaml -set global.image=hashicorp/consul:1.12.0 --kubeconfig=$KUBECONFIG2`)
+	r.Run(`consul-k8s install -config-file=helm-consul-values.yaml -set global.image=hashicorp/consul:1.12.0 -auto-approve --kubeconfig=$KUBECONFIG2`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f networkservice.yaml`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f client/client.yaml`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f service.yaml`)
