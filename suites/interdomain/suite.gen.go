@@ -94,5 +94,6 @@ func (s *Suite) TestNsm_consul_vl3() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 cp consul-envoy.service ns-nsm-consul-vl3/dashboard:/etc/systemd/system/consul-envoy.service`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl daemon-reload ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl start consul-envoy.service ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl enable consul-envoy.service`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 port-forward dashboard 9002:9002 &`)
-	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)` + "\n" + `echo ${result} | grep  -o 'Unreachable'`)
+	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)`)
+	r.Run(`echo ${result} | grep  -o 'Unreachable'`)
 }
