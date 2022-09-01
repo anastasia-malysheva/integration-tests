@@ -32,8 +32,7 @@ func (s *Suite) SetupSuite() {
 }
 func (s *Suite) TestNsm_consul_vl3() {
 	r := s.Runner("../deployments-k8s/examples/interdomain/nsm_consul_vl3")
-	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 create ns ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 apply -k ./cluster1`)
-	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 create ns ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 apply -k ./cluster2`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -k ./cluster1` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 apply -k ./cluster2`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod -l app=nse-vl3-vpp -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod -l app=vl3-ipam -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod -l name=control-plane -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod counting -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 wait --for=condition=ready --timeout=5m pod dashboard -n ns-nsm-consul-vl3`)
 	r.Run(`export CP=$(kubectl --kubeconfig=$KUBECONFIG1 get pods -n ns-nsm-consul-vl3 -l name=control-plane --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')`)
 	r.Run(`ENCRYPTION_KEY=$(kubectl --kubeconfig=$KUBECONFIG1 -n ns-nsm-consul-vl3 exec ${CP} -c ubuntu -- /bin/sh -c 'consul keygen')`)
@@ -95,5 +94,5 @@ func (s *Suite) TestNsm_consul_vl3() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl daemon-reload ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl start consul-envoy.service ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl enable consul-envoy.service`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 port-forward dashboard 9002:9002 &`)
 	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)`)
-	r.Run(`echo ${result} | grep  -o 'Unreachable'`)
+	r.Run(`echo ${result} | grep  -o '\"count\":[1-9]\d*'`)
 }
