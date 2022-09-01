@@ -36,7 +36,7 @@ func (s *Suite) TestNsm_consul_vl3() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 create ns ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 apply -k ./cluster2`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod -l app=nse-vl3-vpp -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod -l app=vl3-ipam -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod -l name=control-plane -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 wait --for=condition=ready --timeout=5m pod counting -n ns-nsm-consul-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 wait --for=condition=ready --timeout=5m pod dashboard -n ns-nsm-consul-vl3`)
 	r.Run(`export CP=$(kubectl --kubeconfig=$KUBECONFIG1 get pods -n ns-nsm-consul-vl3 -l name=control-plane --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')`)
-	r.Run(`ENCRYPTION_KEY=$(kubectl --kubeconfig=$KUBECONFIG1 -n ns-nsm-consul-vl3 exec -it ${CP} -c ubuntu -- consul keygen)`)
+	r.Run(`ENCRYPTION_KEY=$(kubectl --kubeconfig=$KUBECONFIG1 -n ns-nsm-consul-vl3 exec -it ${CP} -c ubuntu -- /bin/sh -c 'consul keygen')`)
 	r.Run(`CP_IP_VL3_ADDRESS=$(kubectl --kubeconfig=$KUBECONFIG1 -n ns-nsm-consul-vl3 exec -it ${CP} -c ubuntu -- ifconfig nsm-1 | grep -Eo 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'| cut -c 6-)`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 -n ns-nsm-consul-vl3 exec -it ${CP} -c ubuntu -- consul tls ca create`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 -n ns-nsm-consul-vl3 exec -it ${CP} -c ubuntu -- consul tls cert create -server -dc dc1`)
