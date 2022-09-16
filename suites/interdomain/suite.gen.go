@@ -42,7 +42,7 @@ func (s *Suite) TestNsm_consul() {
 		r.Run(`consul-k8s uninstall --kubeconfig=$KUBECONFIG2 -auto-approve=true -wipe-data=true`)
 	})
 	r.Run(`brew tap hashicorp/tap` + "\n" + `brew install hashicorp/tap/consul-k8s`)
-	r.Run(`consul-k8s install -config-file=helm-consul-values.yaml -set global.image=hashicorp/consul:1.12.0 -auto-approve --kubeconfig=$KUBECONFIG2`)
+	r.Run(`${CONSUL}/consul-k8s install -config-file=helm-consul-values.yaml -set global.image=hashicorp/consul:1.12.0 -auto-approve --kubeconfig=$KUBECONFIG2`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/networkservice.yaml`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/client/dashboard.yaml`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/service.yaml`)
@@ -54,9 +54,7 @@ func (s *Suite) TestNsm_consul() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 port-forward pod/dashboard-nsc 9002:9002 & sleep 60`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete deploy counting`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/server/counting_nsm.yaml`)
-	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)`)
-	r.Run(`echo ${result}`)
-	r.Run(`echo ${result} | grep  -o '\"count\":[1-9]\d*'`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec pod/dashboard-nsc -c cmd-nsc -- curl counting:9001`)
 }
 func (s *Suite) TestNsm_consul_vl3() {
 	r := s.Runner("../deployments-k8s/examples/interdomain/nsm_consul_vl3")
@@ -123,4 +121,36 @@ func (s *Suite) TestNsm_consul_vl3() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 port-forward dashboard 9002:9002 & sleep 60`)
 	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)`)
 	r.Run(`echo ${result} | grep  -o '\"count\":[1-9]\d*'`)
+}
+func (s *Suite) TestNsm_istio() {
+	r := s.Runner("../deployments-k8s/examples/interdomain/nsm_istio")
+	s.T().Cleanup(func() {
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_istio/greeting/server.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -k https://github.com/networkservicemesh/deployments-k8s/examples/interdomain/nsm_istio/nse-auto-scale?ref=58a90eb58a3e06f02cbd99c221b35327488025cc` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 delete -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_istio/greeting/client.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_istio/networkservice.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete ns istio-system` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 label namespace default istio-injection-` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete pods --all`)
+	})
+	r.Run(`curl -sL https://istio.io/downloadIstioctl | sh -` + "\n" + `export PATH=$PATH:$HOME/.istioctl/bin` + "\n" + `istioctl  install --set profile=minimal -y --kubeconfig=$KUBECONFIG2` + "\n" + `istioctl --kubeconfig=$KUBECONFIG2 proxy-status`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_istio/networkservice.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_istio/greeting/client.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -k https://github.com/networkservicemesh/deployments-k8s/examples/interdomain/nsm_istio/nse-auto-scale?ref=58a90eb58a3e06f02cbd99c221b35327488025cc`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 label namespace default istio-injection=enabled` + "\n" + `` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_istio/greeting/server.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 wait --timeout=2m --for=condition=ready pod -l app=alpine`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec deploy/alpine -c cmd-nsc -- apk add curl`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec deploy/alpine -c cmd-nsc -- curl -s greeting.default:9080 | grep -o "hello world from istio"`)
+}
+func (s *Suite) TestNsm_kuma_universal_vl3() {
+	r := s.Runner("../deployments-k8s/examples/interdomain/nsm_kuma_universal_vl3")
+	s.T().Cleanup(func() {
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG1 delete ns kuma-system kuma-demo ns-dns-vl3` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 delete ns kuma-demo` + "\n" + `rm tls.crt tls.key ca.crt` + "\n" + `rm -rf kuma-1.7.0`)
+	})
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -k ./vl3-dns` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 -n ns-dns-vl3 wait --for=condition=ready --timeout=2m pod -l app=vl3-ipam`)
+	r.Run(`curl -L https://kuma.io/installer.sh | VERSION=1.7.0 ARCH=amd64 bash -` + "\n" + `export PATH=$PWD/kuma-1.7.0/bin:$PATH`)
+	r.Run(`kumactl generate tls-certificate --hostname=control-plane-kuma.my-vl3-network --hostname=kuma-control-plane.kuma-system.svc --type=server --key-file=./tls.key --cert-file=./tls.crt`)
+	r.Run(`cp ./tls.crt ./ca.crt`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f namespace.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 create secret generic general-tls-certs --namespace=kuma-system --from-file=./tls.key --from-file=./tls.crt --from-file=./ca.crt`)
+	r.Run(`kumactl install control-plane --tls-general-secret=general-tls-certs --tls-general-ca-bundle=$(cat ./ca.crt | base64) > ./control-plane/control-plane.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -k ./control-plane`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f demo-redis.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG1 -n kuma-demo wait --for=condition=ready --timeout=3m pod -l app=redis`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f demo-app.yaml` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n kuma-demo wait --for=condition=ready --timeout=3m pod -l app=demo-app`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 port-forward svc/demo-app -n kuma-demo 5000:5000 &`)
+	r.Run(`response=$(curl -X POST localhost:5000/increment)`)
+	r.Run(`echo $response | grep '"err":null'`)
 }
