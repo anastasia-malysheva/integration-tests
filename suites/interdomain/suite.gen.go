@@ -54,6 +54,7 @@ func (s *Suite) TestNsm_consul() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 port-forward pod/dashboard-nsc 9002:9002 & sleep 60`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete deploy counting`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/server/counting_nsm.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 wait --timeout=5m --for=condition=ready pod -l app=counting`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec pod/dashboard-nsc -c cmd-nsc -- curl counting:9001`)
 }
 func (s *Suite) TestNsm_consul_vl3() {
