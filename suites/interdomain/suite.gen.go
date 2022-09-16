@@ -30,6 +30,34 @@ func (s *Suite) SetupSuite() {
 		}
 	}
 }
+func (s *Suite) TestNsm_consul() {
+	r := s.Runner("../deployments-k8s/examples/interdomain/nsm_consul")
+	s.T().Cleanup(func() {
+		r.Run(`pkill -f "port-forward"`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG1 delete deployment counting`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete -k https://github.com/networkservicemesh/deployments-k8s/examples/interdomain/nsm_consul/nse-auto-scale?ref=58a90eb58a3e06f02cbd99c221b35327488025cc`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG1 delete -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/client/dashboard.yaml`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/networkservice.yaml`)
+		r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete pods --all`)
+		r.Run(`consul-k8s uninstall --kubeconfig=$KUBECONFIG2 -auto-approve=true -wipe-data=true`)
+	})
+	r.Run(`brew tap hashicorp/tap` + "\n" + `brew install hashicorp/tap/consul-k8s`)
+	r.Run(`consul-k8s install -config-file=helm-consul-values.yaml -set global.image=hashicorp/consul:1.12.0 -auto-approve --kubeconfig=$KUBECONFIG2`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/networkservice.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/client/dashboard.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/service.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -k https://github.com/networkservicemesh/deployments-k8s/examples/interdomain/nsm_consul/nse-auto-scale?ref=58a90eb58a3e06f02cbd99c221b35327488025cc`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/server/counting.yaml`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 wait --timeout=5m --for=condition=ready pod -l app=dashboard-nsc`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec pod/dashboard-nsc -c cmd-nsc -- apk add curl`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 exec pod/dashboard-nsc -c cmd-nsc -- curl counting:9001`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 port-forward pod/dashboard-nsc 9002:9002 & sleep 60`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 delete deploy counting`)
+	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -f https://raw.githubusercontent.com/networkservicemesh/deployments-k8s/58a90eb58a3e06f02cbd99c221b35327488025cc/examples/interdomain/nsm_consul/server/counting_nsm.yaml`)
+	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)`)
+	r.Run(`echo ${result}`)
+	r.Run(`echo ${result} | grep  -o '\"count\":[1-9]\d*'`)
+}
 func (s *Suite) TestNsm_consul_vl3() {
 	r := s.Runner("../deployments-k8s/examples/interdomain/nsm_consul_vl3")
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG1 apply -k ./cluster1` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 apply -k ./cluster2`)
@@ -94,6 +122,5 @@ func (s *Suite) TestNsm_consul_vl3() {
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl daemon-reload ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl start consul-envoy.service ` + "\n" + `kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 exec dashboard -c ubuntu -- sudo systemctl enable consul-envoy.service`)
 	r.Run(`kubectl --kubeconfig=$KUBECONFIG2 -n ns-nsm-consul-vl3 port-forward dashboard 9002:9002 & sleep 60`)
 	r.Run(`result=$(curl --include --no-buffer --connect-timeout 20 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: 127.0.0.1:9002" -H "Origin: http://127.0.0.1:9002" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" -H "Sec-WebSocket-Version: 13" http://127.0.0.1:9002/socket.io/?EIO=3&transport=websocket)`)
-	r.Run(`echo ${result}`)
 	r.Run(`echo ${result} | grep  -o '\"count\":[1-9]\d*'`)
 }
